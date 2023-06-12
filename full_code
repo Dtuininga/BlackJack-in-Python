@@ -1,0 +1,346 @@
+import random
+import time
+
+current_deck=[]
+
+#Single-deck blackjack simulator with casino betting
+
+
+def main():
+    #game of blackjack
+    play_again=True
+    games_won=0
+    games_lost=0
+    games_tied=0
+    current_wallet=15.00
+    STARTING_BET=5.00
+    
+    while play_again and current_wallet>=STARTING_BET:
+        
+        starting_deck=create_deck()
+        #hit_me=None
+        double_down=None
+        #insurance=None
+        card1, current_deck=deal_a_card(starting_deck)
+        card2, current_deck=deal_a_card(current_deck)
+        card3, current_deck=deal_a_card(current_deck)
+        card4, current_deck=deal_a_card(current_deck)
+        dealers_hand=[card1, card3]
+        players_hand=[card2, card4]
+        print()
+        print("***Welcome to Blackjack!***")
+        print("You currently have ${:.2f}".format(current_wallet))
+        print("You place a starting bet of ${:.2f}".format(STARTING_BET))
+        current_wallet-=STARTING_BET
+        print()
+        print("Dealer's Hand: " )
+        print(dealers_hand[0]+" ??")
+        dealer_showing=dealers_hand[0][0]
+        dealers_score=(get_score(dealers_hand))
+        print()
+        players_score=(get_score(players_hand))
+        print("Player's Hand: "+str(players_score)+" pts.")
+        print(show_hand(players_hand))
+        print()
+        
+        if players_score==21 and dealers_score==21: #double blackjack
+            time.sleep(2)
+            print("You got a Natural BlackJack... but so did the dealer! It's a stand-off, everyone wins, and all bets are returned")
+            print("Dealer: "+show_hand(dealers_hand)+"\tPlayer: "+show_hand(players_hand))
+            print()
+            current_wallet+=STARTING_BET
+            print("You currently have ${:.2f}".format(current_wallet))
+            games_tied+=1
+            players_score+=20
+            play_again=again(current_wallet, STARTING_BET)
+            
+        if players_score==21:
+            time.sleep(2)
+            print("Natural BlackJack! You Win!")
+            print("Dealer: "+show_hand(dealers_hand)+"\tPlayer: "+show_hand(players_hand))
+            games_won+=1
+            print()
+            current_wallet+=1.5*STARTING_BET
+            print("You get 1.5x your bet! You now have ${:.2f}".format(current_wallet))
+            players_score+=20
+            dealers_score+=20
+            
+            play_again=again(current_wallet, STARTING_BET)
+            
+        #adding check for possible splitting functionality
+        first_val=players_hand[0][0]
+        second_val=players_hand[1][0]
+        if first_val==second_val: 
+            print("You got dealt a starting pair! (Unfortunately this casino does not allow splitting... yet!)")
+        
+        #check for dealer showing ace (ace always moved to the last index after checking score)
+        insurance='n'
+        if dealer_showing=='A'and current_wallet>=STARTING_BET/2 and players_score<21:
+            insurance=input("Dealer shows an Ace! Would you like to buy insurance against a possible Dealer's BlackJack for ${:.2f}".format(STARTING_BET/2)+"? (y/n)")
+            if insurance.lower()=='y':
+                current_wallet-=STARTING_BET/2
+        
+        #can't double down if you already got blackjack or can't afford it
+        double_down='n' 
+        player_stand='n'
+        if players_score<21 and current_wallet>=STARTING_BET:
+            choice=input("You can (H)it, (S)tand, or (D)ouble down with one additional card for ${:.2f}".format(STARTING_BET)+": (H/S/D)")
+            if choice.lower()=='s':
+                hit_me='n'
+                player_stand='y'
+            if choice.lower()=='d':
+                double_down='y'
+                print("You double your bet, and get one card.")
+                current_wallet-=STARTING_BET
+            if choice.lower()=='h':
+                next_card, current_deck=deal_a_card(current_deck)
+                players_hand.append(next_card)
+                print(show_hand(players_hand))
+                players_score=(get_score(players_hand))
+                print('Your score is now '+str(players_score)+" pts." )
+                double_down='n'
+                if players_score>21:
+                    play_again, games_lost=busted(current_wallet, STARTING_BET, games_lost, dealers_hand, players_hand)
+                if players_score==21:
+                    hit_me='n'
+                    player_stand='y'
+                    
+        elif players_score<21 and current_wallet<STARTING_BET:
+            choice=input("You can (H)it, or (S)tand: (H/S)")
+            if choice.lower()=='s':
+                hit_me='n'
+                player_stand='y'
+            if choice.lower()=='h':
+                next_card, current_deck=deal_a_card(current_deck)
+                players_hand.append(next_card)
+                print(show_hand(players_hand))
+                players_score=(get_score(players_hand))
+                print('Your score is now '+str(players_score)+" pts." )
+                double_down='n'
+                if players_score>21:
+                    play_again, games_lost=busted(current_wallet, STARTING_BET, games_lost, dealers_hand, players_hand)
+                if players_score==21:
+                    hit_me='n'
+                    player_stand='y'
+         
+        while players_score<=21 and dealers_score<=21:
+            
+            print()
+            if double_down=='n' and player_stand=='n':
+                hit_me=input("Would you like to (h)it for another card? (y/n)")
+            elif double_down=='y'and len(players_hand)<3:
+                next_card, current_deck=deal_a_card(current_deck)
+                players_hand.append(next_card)
+                players_score=(get_score(players_hand))
+                print(show_hand(players_hand))
+                if players_score>21:
+                    play_again, games_lost=busted(current_wallet, STARTING_BET, games_lost, dealers_hand, players_hand)
+                hit_me='n'
+                player_stand='y'
+            
+            if hit_me.lower()=='y'or hit_me.lower()=='h': #accepts "yes" or "hit"
+                next_card, current_deck=deal_a_card(current_deck)
+                players_hand.append(next_card)
+                print(show_hand(players_hand))
+                players_score=(get_score(players_hand))
+                print('Your score is now '+str(players_score)+" pts." )
+                
+                if players_score==21:
+                    if dealers_score==21:
+                        print("You got 21, but the dealer wins with a Natural BlackJack.")
+                        print("Dealer: "+show_hand(dealers_hand)+"\tPlayer: "+show_hand(players_hand))
+                        print("You currently have ${:.2f}".format(current_wallet))
+                        games_lost+=1
+                        dealers_score+=20
+                        players_score+=20
+                        play_again=again(current_wallet, STARTING_BET)
+                    else:    
+                        print("You hit 21! You stand, and dealer gets a chance to push.")
+                        hit_me='n'
+                        
+                if players_score>21:
+                    play_again, games_lost=busted(current_wallet, STARTING_BET, games_lost, dealers_hand, players_hand)
+                    #print("You Busted! Dealer wins.")
+                    #print("Dealer: "+show_hand(dealers_hand)+"\tPlayer: "+show_hand(players_hand))
+                    #print("You currently have ${:.2f}".format(current_wallet))
+                    #games_lost+=1
+                    #play_again=again(current_wallet, STARTING_BET)
+                    
+            #Dealer's Turn        
+            if hit_me.lower()=='n' and players_score<=21:
+                print("Player stands at "+str(players_score)+" pts.")
+                print()
+                print("Dealer shows their card. (Must hit on 16, stand on 17)")
+                print(show_hand(dealers_hand))
+                player_stand='y'
+                
+                
+                if dealers_score==21 and len(dealers_hand)<3:
+                    print("Natural BlackJack! Dealer Wins!")
+                    print("Dealer: "+show_hand(dealers_hand)+"\tPlayer: "+show_hand(players_hand))
+                    games_lost+=1
+                    if insurance=='y':
+                        print("You bought insurance, so you get your initial bet and insurance back for this round.")
+                        current_wallet+=STARTING_BET+(STARTING_BET/2)
+                    players_score+=30    
+                    print("You currently have ${:.2f}".format(current_wallet))
+                    play_again=again(current_wallet, STARTING_BET)
+                
+                while dealers_score<17:
+                    next_card, current_deck=deal_a_card(current_deck)
+                    dealers_hand.append(next_card)
+                    dealers_score=(get_score(dealers_hand))
+                    print()
+                    print("Dealer hits. Dealer now has "+str(dealers_score)+" pts.")
+                    print(show_hand(dealers_hand))
+                    time.sleep(2)
+                    
+                if dealers_score==players_score:
+                    print("Dealer stands at "+str(dealers_score)+" pts.")
+                    print("Dealer: "+show_hand(dealers_hand)+"\tPlayer: "+show_hand(players_hand))
+                    print("It's a standoff! Everybody wins, and all bets are returned!")
+                    if double_down=='y':
+                        print("(Sorry, you don't get your 'double down' side bet back in this case.)")
+                    if insurance=='y':
+                        print("(Sorry, you don't get yourinsurance back in this case.)")
+                    current_wallet+=STARTING_BET
+                    print("You currently have ${:.2f}".format(current_wallet))
+                    games_tied+=1
+                    players_score+=30 #allows for while loop exit
+                    dealers_score+=30
+                    play_again=again(current_wallet, STARTING_BET)
+                if dealers_score>21 and dealers_score<30:
+                    print("Dealer Busted! You win!")
+                    print("Dealer: "+show_hand(dealers_hand)+"\tPlayer: "+show_hand(players_hand))
+                    if double_down=='y':
+                        print("You doubled down, so you get 4x your starting bet!")
+                        print("You went from ${:.2f}".format(current_wallet))
+                        current_wallet+=4*STARTING_BET
+                        print("to ${:.2f}".format(current_wallet))
+                    else: 
+                        current_wallet+=2*STARTING_BET
+                    print("You currently have ${:.2f}".format(current_wallet))
+                    games_won+=1
+                    play_again=again(current_wallet, STARTING_BET)
+                if dealers_score < players_score and players_score<=21:
+                    print("Dealer stands at "+str(dealers_score)+" pts.")
+                    print("Dealer: "+show_hand(dealers_hand)+"\tPlayer: "+show_hand(players_hand))
+                    print("You win!")
+                    games_won+=1
+                    if double_down=='y':
+                        print("You doubled down, so you get 4x your starting bet!")
+                        print("You went from ${:.2f}".format(current_wallet))
+                        current_wallet+=4*STARTING_BET
+                        print("to ${:.2f}".format(current_wallet))
+                    else: 
+                        current_wallet+=2*STARTING_BET
+                    print("You currently have ${:.2f}".format(current_wallet))
+                    players_score+=20 #allows for while loop exit
+                    play_again=again(current_wallet, STARTING_BET)
+                    
+                if dealers_score > players_score and dealers_score<=21 and len(dealers_hand)>=2:
+                    print('Dealer wins with '+str(dealers_score)+' pts!')
+                    games_lost+=1
+                    print("Dealer: "+show_hand(dealers_hand)+"\tPlayer: "+show_hand(players_hand))
+                    print("You currently have ${:.2f}".format(current_wallet))
+                    players_score+=20 #allows for while loop exit
+                    play_again=again(current_wallet, STARTING_BET)
+               
+    if play_again==False or current_wallet<STARTING_BET:
+        print()
+        print("Thank you for playing!")
+        print()
+        print("Games won: "+str(games_won)+"\tGames lost: "+str(games_lost)+"\tGames tied: "+str(games_tied))
+        percentage=100*(games_won/(games_won+games_lost+games_tied))
+        print("Win percentage: "+str(round(percentage, 1))+"% of "+str(games_won+games_lost+games_tied)+" games played.")
+        print("Final cashout: ${:.2f}".format(current_wallet))
+        
+    
+                    
+def create_deck():
+    card_values=['A','2','3','4','5','6','7','8','9','10','J','Q','K']
+    deck=[]
+    for value in card_values:
+        deck.append(value+"\u2663") #clubs
+        deck.append(value+"\u2665") #hearts
+        deck.append(value+"\u2666") #diamonds
+        deck.append(value+"\u2660") #spades
+    return deck    
+
+def deal_a_card(deck):
+    #remove a random index (0-51)
+    index=random.randint(0,len(deck)-1)
+    drawn_card=deck.pop(index)
+    return(drawn_card, deck)
+    
+def get_score(cards_list):
+    #totals face value of cards
+    score=0
+    cards_list.sort(reverse=True) #keeps ace out of 1st position... mostly
+    face_cards=['1','J','Q','K']
+    num_cards=['2', '3','4','5','6','7','8','9']
+    new_cards_list,ace_count=sort_ace(cards_list)
+    for card in new_cards_list:
+        rank=card[0]
+        if rank in face_cards:
+            score+=10
+        if rank in num_cards:
+            score+=(int(rank))
+        if rank=='A':
+            if ace_count==1:
+                if score>10 or score+11>21:
+                    score+=1
+                if score<=10:
+                    score+=11
+                
+            if ace_count>1:
+                if score+11>20:
+                    score+=1
+                if score+11<=20:
+                    score+=11
+    return score    
+
+def sort_ace(cards_list):
+    #moves ace to end for better scoring logic
+    ace_count=0
+    for x in cards_list:
+        ace=x[0]
+        if ace=='A':
+            ace_count+=1
+            if len(cards_list)>2:
+                ace_card=cards_list.pop(cards_list.index(x))
+                cards_list.append(ace_card)
+    return(cards_list, ace_count)
+    
+def show_hand(cards_list):
+    #prints out the hand as a full string
+    hand=""
+    for card in cards_list:
+        hand+=card+" "
+    return hand
+
+    
+def again(current_wallet, STARTING_BET): 
+    #checks if player is broke before giving option
+    print()
+    if current_wallet<STARTING_BET:
+            time.sleep(3)
+            print("Sorry, you don't have enough money to bet any more!")
+            time.sleep(3)
+            return False
+    another_hand=input("Play again? (y/n): ")
+    if another_hand.lower()=='n':
+        return False
+    else:
+        return True
+ 
+def busted(current_wallet, STARTING_BET, games_lost, dealers_hand, players_hand):
+    print("You Busted! Dealer wins.")
+    print("Dealer: "+show_hand(dealers_hand)+"\tPlayer: "+show_hand(players_hand))
+    print("You currently have ${:.2f}".format(current_wallet))
+    games_lost+=1
+    play_again=again(current_wallet, STARTING_BET)
+    return play_again, games_lost
+
+if __name__ == "__main__":
+    main()
